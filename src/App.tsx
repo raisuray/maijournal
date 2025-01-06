@@ -1,78 +1,80 @@
-import React, { useState } from "react";
-import { Trash2, Edit2, Check, X } from "lucide-react";
+import React from "react";
+import { ChevronLeft } from "lucide-react";
+import { ProjectSelector } from "./components/ProjectSelector";
+import { JournalEntry } from "./components/JournalEntry";
+import { useProjects } from "./hooks/useProjects";
+import { useJournalEntries } from "./hooks/useJournalEntries";
+import { groupEntriesByDate } from "./utils/dateUtils";
 
-const TaskJournal = () => {
-  const [entries, setEntries] = useState<Journal[]>([]);
-  const [currentEntry, setCurrentEntry] = useState<string>("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editContent, setEditContent] = useState<string>("");
+const ProjectJournal = () => {
+  const {
+    projects,
+    projectEntries,
+    selectedProject,
+    editingProjectId,
+    setSelectedProject,
+    setProjectEntries,
+    setEditingProjectId,
+    addProject,
+    deleteProject,
+    renameProject,
+  } = useProjects();
+
+  const {
+    currentEntry,
+    setCurrentEntry,
+    editingId,
+    setEditingId,
+    editContent,
+    setEditContent,
+    addEntry,
+    updateEntry,
+    deleteEntry,
+  } = useJournalEntries(
+    projectEntries,
+    setProjectEntries,
+    selectedProject?.id ?? null,
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (currentEntry.trim()) {
-        const now = new Date();
-        const newEntry: Journal = {
-          id: Date.now(),
-          text: currentEntry,
-          timestamp: now.toISOString(),
-          time: now.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        };
-        setEntries([newEntry, ...entries]);
+        addEntry(currentEntry);
         setCurrentEntry("");
       }
     }
   };
 
-  const startEditing = (entry: Journal) => {
-    setEditingId(entry.id);
-    setEditContent(entry.text);
-  };
+  if (!selectedProject) {
+    return (
+      <ProjectSelector
+        projects={projects}
+        editingProjectId={editingProjectId}
+        onSelectProject={setSelectedProject}
+        onDeleteProject={deleteProject}
+        onAddProject={addProject}
+        onRenameProject={renameProject}
+        setEditingProjectId={setEditingProjectId}
+      />
+    );
+  }
 
-  const saveEdit = () => {
-    if (editContent.trim()) {
-      setEntries(
-        entries.map((entry) =>
-          entry.id === editingId ? { ...entry, text: editContent } : entry,
-        ),
-      );
-    }
-    setEditingId(null);
-    setEditContent("");
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditContent("");
-  };
-
-  const deleteEntry = (id: number) => {
-    setEntries(entries.filter((entry) => entry.id !== id));
-  };
-
-  // Group entries by date
-  const groupedEntries = entries.reduce((groups: GroupedEntries, entry) => {
-    const date = new Date(entry.timestamp);
-    const dateStr = date.toLocaleDateString([], {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
-    if (!groups[dateStr]) {
-      groups[dateStr] = [];
-    }
-    groups[dateStr].push(entry);
-    return groups;
-  }, {});
+  const groupedEntries = groupEntriesByDate(
+    projectEntries[selectedProject.id] || [],
+  );
 
   return (
     <div className="w-full p-4">
-      <h1 className="my-3 text-xl font-bold	">マイ ジャーナル</h1>
+      <div className="flex items-center gap-4 my-3">
+        <button
+          onClick={() => setSelectedProject(null)}
+          className="text-gray-600 hover:text-gray-800"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-xl font-bold">{selectedProject.name}</h1>
+      </div>
 
       <div className="bg-[#fffdf8] min-h-screen p-6 shadow-inner">
         <textarea
@@ -91,68 +93,35 @@ const TaskJournal = () => {
                 {date}
               </h2>
               <div className="space-y-4">
-                {dateEntries.map((entry: Journal) => (
+                {dateEntries.map((entry) => (
                   <div key={entry.id} className="group">
-                    {editingId === entry.id ? (
-                      <div className="space-y-2">
-                        <textarea
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          className="w-full p-2 bg-white border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          rows={3}
-                        />
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={saveEdit}
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <Check className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start w-full">
-                        <div className="text-gray-400 mr-3 flex-shrink-0">
-                          •
-                        </div>
-                        <div className="min-w-0 flex-1 flex">
-                          <p className="text-gray-800 break-all pr-4">
-                            {entry.text}
-                          </p>
-                          <div className="flex-shrink-0 flex items-start gap-4 pl-4 ml-auto">
-                            <span className="text-sm text-gray-400 whitespace-nowrap">
-                              {entry.time}
-                            </span>
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                              <button
-                                onClick={() => startEditing(entry)}
-                                className="text-gray-400 hover:text-blue-500"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => deleteEntry(entry.id)}
-                                className="text-gray-400 hover:text-red-500"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <JournalEntry
+                      entry={entry}
+                      isEditing={editingId === entry.id}
+                      editContent={editContent}
+                      onEditStart={() => {
+                        setEditingId(entry.id);
+                        setEditContent(entry.text);
+                      }}
+                      onEditChange={setEditContent}
+                      onEditSave={() => {
+                        updateEntry(entry.id, editContent);
+                        setEditingId(null);
+                        setEditContent("");
+                      }}
+                      onEditCancel={() => {
+                        setEditingId(null);
+                        setEditContent("");
+                      }}
+                      onDelete={() => deleteEntry(entry.id)}
+                    />
                   </div>
                 ))}
               </div>
             </div>
           ))}
-          {entries.length === 0 && (
+          {(!projectEntries[selectedProject.id] ||
+            projectEntries[selectedProject.id].length === 0) && (
             <p className="text-center text-gray-400 italic mt-8">
               Your journal is empty. Start writing...
             </p>
@@ -163,4 +132,4 @@ const TaskJournal = () => {
   );
 };
 
-export default TaskJournal;
+export default ProjectJournal;

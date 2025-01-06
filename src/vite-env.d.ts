@@ -1,11 +1,20 @@
 /// <reference types="vite/client" />
-type Journal = {
+export interface Project {
+  id: number;
+  name: string;
+}
+
+export interface Journal {
   id: number;
   text: string;
   timestamp: string;
   time: string;
-};
+}
 
-type GroupedEntries = {
-  [dateStr: string]: Journal[]; // Keys are date strings, and values are arrays of entries
-};
+export interface ProjectEntries {
+  [projectId: number]: Journal[];
+}
+
+export interface GroupedEntries {
+  [date: string]: Journal[];
+}
